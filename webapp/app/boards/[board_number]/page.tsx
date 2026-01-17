@@ -37,26 +37,27 @@ export default function BoardPage() {
   ]);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-zinc-100 dark:bg-zinc-900">
-      {/* Board Header */}
-      <header className="absolute left-0 right-0 top-0 z-10 border-b border-zinc-300 bg-white/80 px-6 py-4 backdrop-blur dark:border-zinc-700 dark:bg-zinc-950/80">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+    <div className="relative h-screen w-screen overflow-hidden bg-white dark:bg-zinc-900">
+      {/* Navbar */}
+      <nav className="absolute left-0 right-0 top-0 z-20 border-b border-zinc-100 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/80">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-4">
+            <a href="/" className="text-xl font-bold text-zinc-800 transition-colors hover:text-zinc-600 dark:text-zinc-50 dark:hover:text-zinc-200">
               Public Clipboard
-            </h1>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Board #{boardNumber}
-            </p>
+            </a>
+            <div className="flex items-center gap-2 rounded-full bg-zinc-50 px-3 py-1 dark:bg-zinc-800">
+              <span className="text-xs font-medium text-zinc-400 dark:text-zinc-400">Board</span>
+              <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-50">#{boardNumber}</span>
+            </div>
           </div>
           <a
             href="/"
-            className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            className="rounded-full bg-zinc-800 px-4 py-2 text-sm font-semibold text-white transition-all hover:scale-105 hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
             ← Home
           </a>
         </div>
-      </header>
+      </nav>
 
       {/* Canvas */}
       <div className="absolute inset-0 pt-[73px]">
@@ -76,8 +77,8 @@ export default function BoardPage() {
               className="pointer-events-none absolute inset-0"
               style={{
                 backgroundImage: `
-                  linear-gradient(to right, rgb(229 231 235 / 0.3) 1px, transparent 1px),
-                  linear-gradient(to bottom, rgb(229 231 235 / 0.3) 1px, transparent 1px)
+                  linear-gradient(to right, rgb(113 113 122 / 0.08) 1px, transparent 1px),
+                  linear-gradient(to bottom, rgb(113 113 122 / 0.08) 1px, transparent 1px)
                 `,
                 backgroundSize: "40px 40px",
               }}
@@ -87,7 +88,7 @@ export default function BoardPage() {
             {objects.map((obj) => (
               <div
                 key={obj.id}
-                className="absolute cursor-move rounded-lg border-2 border-zinc-300 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-700 dark:bg-zinc-900"
+                className="absolute cursor-move rounded-lg border-2 border-zinc-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
                 style={{
                   left: `${obj.x}px`,
                   top: `${obj.y}px`,
@@ -95,7 +96,7 @@ export default function BoardPage() {
                   height: `${obj.height}px`,
                 }}
               >
-                <div className="h-full overflow-auto whitespace-pre-wrap text-sm text-zinc-900 dark:text-zinc-50">
+                <div className="h-full overflow-auto whitespace-pre-wrap text-sm text-zinc-800 dark:text-zinc-50">
                   {obj.content}
                 </div>
               </div>
@@ -106,7 +107,7 @@ export default function BoardPage() {
 
       {/* Floating Action Button */}
       <button
-        className="fixed bottom-8 left-8 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-900 text-2xl text-white shadow-lg transition-all hover:scale-110 hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+        className="fixed bottom-8 left-8 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-800 text-2xl text-white shadow-lg transition-all hover:scale-110 hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
         title="Create new text object"
       >
         +
