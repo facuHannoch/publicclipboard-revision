@@ -5,9 +5,9 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy shared package
-COPY shared/package.json shared/tsconfig.json shared/constants.ts ./shared/
-WORKDIR /app/shared
-RUN npm install && npm run build
+# COPY shared/package.json shared/tsconfig.json shared/constants.ts ./shared/
+# WORKDIR /app/shared
+# RUN npm install && npm run build
 
 # Copy server files
 WORKDIR /app/server
@@ -32,9 +32,9 @@ RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
 # Copy shared package
-COPY --from=builder /app/shared/package.json /app/shared/
-COPY --from=builder /app/shared/constants.js /app/shared/
-COPY --from=builder /app/shared/constants.d.ts /app/shared/
+# COPY --from=builder /app/shared/package.json /app/shared/
+# COPY --from=builder /app/shared/constants.js /app/shared/
+# COPY --from=builder /app/shared/constants.d.ts /app/shared/
 
 # Copy production dependencies and built code
 COPY --from=builder /app/server/package*.json ./
