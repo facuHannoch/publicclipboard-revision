@@ -1,0 +1,10 @@
+export const CANVAS_WIDTH = 3840
+export const CANVAS_HEIGHT = 2160
+export const GRID_SIZE = 40
+export const MIN_GAP = 10
+export const DEFAULT_OBJECT_SIZE = { width: 320, height: 200 }
+export const BOARD_MIN = 0
+export const BOARD_MAX = 199
+export const MAX_ZOOM = 4
+export const MIN_ZOOM = 0.5
+export const WHEEL_SCROLL_ENABLED = false
