@@ -3,7 +3,7 @@ import crypto from 'node:crypto'
 import express from 'express'
 import cors from 'cors'
 import { WebSocketServer } from 'ws'
-import type WebSocket from 'ws'
+import WebSocket from 'ws'
 
 import { connectRedis } from './redis.js'
 import { loadBoard, saveBoard } from './persistence.js'
