@@ -7,4 +7,4 @@
 - Verify desktop/mobile behaviors and document decisions in LOG.
 
 ## LOG
-- 
+- Implemented functional board canvas with object creation, editing, perimeter drag, collision checks, and localStorage persistence in `webapp/app/boards/[board_number]/page.tsx`.
