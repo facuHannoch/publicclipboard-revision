@@ -3,11 +3,19 @@ services:
     image: traefik:v3.6
     container_name: traefik
     restart: unless-stopped
+    environment:
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-admin@example.com}
     command:
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
+
+      # Let's Encrypt configuration
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/acme.json"
     ports:
       - "80:80"
       - "443:443"
@@ -15,7 +23,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # - ./traefik/traefik.yml:/traefik.yml:ro
-      # - ./traefik/acme.json:/acme.json
+      - ./traefik/acme.json:/acme.json  # Needed for SSL certificates
       # - ./traefik/config:/config:ro
     networks:
       - web
