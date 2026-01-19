@@ -5,6 +5,10 @@ const boards = new Map<BoardId, BoardState>()
 
 export const getBoard = (id: BoardId): BoardState | undefined => boards.get(id)
 
+export const clearBoards = (): void => {
+  boards.clear()
+}
+
 export const setBoard = (board: BoardState): void => {
   boards.set(board.id, board)
 }
