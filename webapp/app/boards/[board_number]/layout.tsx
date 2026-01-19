@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 
 export const runtime = 'edge';
 
-export function generateMetadata({
+export async function generateMetadata({
   params,
 }: {
-  params: { board_number: string };
-}): Metadata {
+  params: Promise<{ board_number: string }>;
+}): Promise<Metadata> {
+  const { board_number } = await params;
   return {
-    title: `Board #${params.board_number}`,
+    title: `Board #${board_number}`,
     robots: {
       index: false,
       follow: false,
