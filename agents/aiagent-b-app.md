@@ -8,3 +8,8 @@
 
 ## LOG
 - Implemented functional board canvas with object creation, editing, perimeter drag, collision checks, and localStorage persistence in `webapp/app/boards/[board_number]/page.tsx`.
+- Added click-and-drag panning for mouse and touch on empty canvas.
+- Added grab/grabbing cursor and touch inertia for canvas panning.
+- Increased drag responsiveness under canvas scaling and added hover/move cues for draggable cards.
+- Doubled canvas size and added wheel/touch pinch zoom capped at 400%.
+- Disabled wheel scrolling by default via `WHEEL_SCROLL_ENABLED` to avoid zoom/scroll conflicts.

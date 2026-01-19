@@ -3,13 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
-const CANVAS_WIDTH = 1920;
-const CANVAS_HEIGHT = 1080;
+const CANVAS_WIDTH = 3840;
+const CANVAS_HEIGHT = 2160;
 const GRID_SIZE = 40;
 const MIN_GAP = 10;
 const DEFAULT_OBJECT_SIZE = { width: 320, height: 200 };
 const BOARD_MIN = 0;
 const BOARD_MAX = 199;
+const MAX_ZOOM = 4;
+const MIN_ZOOM = 0.5;
+const WHEEL_SCROLL_ENABLED = false;
 
 interface TextObject {
   id: string;
@@ -29,6 +32,28 @@ interface DragState {
   originY: number;
   startX: number;
   startY: number;
+}
+
+interface PanState {
+  pointerId: number;
+  pointerType: string;
+  startX: number;
+  startY: number;
+  originScrollLeft: number;
+  originScrollTop: number;
+  lastX: number;
+  lastY: number;
+  lastTime: number;
+  velocityX: number;
+  velocityY: number;
+}
+
+interface PinchState {
+  pointerIds: [number, number];
+  startDistance: number;
+  startZoom: number;
+  centerX: number;
+  centerY: number;
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -72,10 +97,17 @@ export default function BoardPage() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [canvasScale, setCanvasScale] = useState(1);
+  const [fitScale, setFitScale] = useState(1);
+  const [zoom, setZoom] = useState(1);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [lastTap, setLastTap] = useState(0);
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const objectsRef = useRef<TextObject[]>([]);
+  const panStateRef = useRef<PanState | null>(null);
+  const inertiaRef = useRef<number | null>(null);
+  const pinchRef = useRef<PinchState | null>(null);
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
 
   useEffect(() => {
     objectsRef.current = objects;
@@ -119,8 +151,8 @@ export default function BoardPage() {
 
     const handlePointerMove = (event: PointerEvent) => {
       if (event.pointerId !== dragState.pointerId) return;
-      const deltaX = event.clientX - dragState.startX;
-      const deltaY = event.clientY - dragState.startY;
+      const deltaX = (event.clientX - dragState.startX) / canvasScale;
+      const deltaY = (event.clientY - dragState.startY) / canvasScale;
       const current = objectsRef.current.find((obj) => obj.id === dragState.id);
       if (!current) return;
 
@@ -177,11 +209,82 @@ export default function BoardPage() {
     const viewport = viewportRef.current;
     if (!viewport) return;
 
+    const handlePointerMove = (event: PointerEvent) => {
+      const panState = panStateRef.current;
+      if (!panState || event.pointerId !== panState.pointerId) return;
+      if (pinchRef.current) return;
+      const deltaX = event.clientX - panState.startX;
+      const deltaY = event.clientY - panState.startY;
+      viewport.scrollLeft = panState.originScrollLeft - deltaX;
+      viewport.scrollTop = panState.originScrollTop - deltaY;
+
+      const now = performance.now();
+      const dt = now - panState.lastTime || 1;
+      panState.velocityX = (event.clientX - panState.lastX) / dt;
+      panState.velocityY = (event.clientY - panState.lastY) / dt;
+      panState.lastX = event.clientX;
+      panState.lastY = event.clientY;
+      panState.lastTime = now;
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      const panState = panStateRef.current;
+      if (!panState || event.pointerId !== panState.pointerId) return;
+      panStateRef.current = null;
+      viewport.style.cursor = "";
+
+      if (panState.pointerType !== "touch") return;
+      const speed = Math.hypot(panState.velocityX, panState.velocityY);
+      if (speed < 0.05) return;
+
+      const decay = 0.95;
+      let vx = panState.velocityX * 16;
+      let vy = panState.velocityY * 16;
+      let lastTime = performance.now();
+
+      const step = () => {
+        const now = performance.now();
+        const dt = (now - lastTime) / 16;
+        lastTime = now;
+        vx *= Math.pow(decay, dt);
+        vy *= Math.pow(decay, dt);
+        viewport.scrollLeft -= vx * dt;
+        viewport.scrollTop -= vy * dt;
+
+        if (Math.hypot(vx, vy) > 0.5) {
+          inertiaRef.current = requestAnimationFrame(step);
+        } else {
+          inertiaRef.current = null;
+        }
+      };
+
+      inertiaRef.current = requestAnimationFrame(step);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      if (inertiaRef.current) {
+        cancelAnimationFrame(inertiaRef.current);
+        inertiaRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
     const updateScale = () => {
       const availableWidth = viewport.clientWidth;
       const availableHeight = viewport.clientHeight;
       const scale = Math.min(1, availableWidth / CANVAS_WIDTH, availableHeight / CANVAS_HEIGHT);
-      setCanvasScale(Number.isFinite(scale) ? scale : 1);
+      const nextFit = Number.isFinite(scale) ? scale : 1;
+      setFitScale(nextFit);
+      setCanvasScale(nextFit * zoom);
     };
 
     updateScale();
@@ -194,7 +297,21 @@ export default function BoardPage() {
       observer.disconnect();
       window.removeEventListener("resize", updateScale);
     };
-  }, [boardNumber]);
+  }, [boardNumber, zoom]);
+
+  const updateZoom = (nextZoom: number, focalX: number, focalY: number) => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const boundedZoom = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
+    const currentScale = canvasScale;
+    const nextScale = fitScale * boundedZoom;
+    const worldX = (viewport.scrollLeft + focalX) / currentScale;
+    const worldY = (viewport.scrollTop + focalY) / currentScale;
+    setZoom(boundedZoom);
+    setCanvasScale(nextScale);
+    viewport.scrollLeft = worldX * nextScale - focalX;
+    viewport.scrollTop = worldY * nextScale - focalY;
+  };
 
   const createObjectAt = (x: number, y: number) => {
     const width = DEFAULT_OBJECT_SIZE.width;
@@ -279,17 +396,63 @@ export default function BoardPage() {
   };
 
   const handleCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== "touch") return;
     if (event.target !== event.currentTarget) return;
-    const now = Date.now();
-    const timeSince = now - lastTap;
-    setLastTap(now);
-    if (timeSince < 300) {
-      const rect = event.currentTarget.getBoundingClientRect();
-      const x = (event.clientX - rect.left) / canvasScale;
-      const y = (event.clientY - rect.top) / canvasScale;
-      handleCanvasCreate(x, y);
+    if (event.button !== 0) return;
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    if (event.pointerType === "touch") {
+      pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pointersRef.current.size === 2) {
+        const [first, second] = Array.from(pointersRef.current.entries());
+        const dx = first[1].x - second[1].x;
+        const dy = first[1].y - second[1].y;
+        const distance = Math.hypot(dx, dy);
+        const rect = viewport.getBoundingClientRect();
+        pinchRef.current = {
+          pointerIds: [first[0], second[0]],
+          startDistance: distance,
+          startZoom: zoom,
+          centerX: (first[1].x + second[1].x) / 2 - rect.left,
+          centerY: (first[1].y + second[1].y) / 2 - rect.top,
+        };
+        panStateRef.current = null;
+        viewport.style.cursor = "";
+        return;
+      }
+
+      const now = Date.now();
+      const timeSince = now - lastTap;
+      setLastTap(now);
+      if (timeSince < 300) {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = (event.clientX - rect.left) / canvasScale;
+        const y = (event.clientY - rect.top) / canvasScale;
+        handleCanvasCreate(x, y);
+        return;
+      }
     }
+
+    if (inertiaRef.current) {
+      cancelAnimationFrame(inertiaRef.current);
+      inertiaRef.current = null;
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    panStateRef.current = {
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      startX: event.clientX,
+      startY: event.clientY,
+      originScrollLeft: viewport.scrollLeft,
+      originScrollTop: viewport.scrollTop,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      lastTime: performance.now(),
+      velocityX: 0,
+      velocityY: 0,
+    };
+    viewport.style.cursor = "grabbing";
   };
 
   const handleFabCreate = () => {
@@ -353,6 +516,46 @@ export default function BoardPage() {
     });
   };
 
+  const handleCanvasPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "touch") return;
+    const pointers = pointersRef.current;
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const pinchState = pinchRef.current;
+    if (!pinchState) return;
+    const [firstId, secondId] = pinchState.pointerIds;
+    const first = pointers.get(firstId);
+    const second = pointers.get(secondId);
+    if (!first || !second) return;
+    const dx = first.x - second.x;
+    const dy = first.y - second.y;
+    const distance = Math.hypot(dx, dy);
+    if (!distance) return;
+    const scaleFactor = distance / pinchState.startDistance;
+    const nextZoom = clamp(pinchState.startZoom * scaleFactor, MIN_ZOOM, MAX_ZOOM);
+    updateZoom(nextZoom, pinchState.centerX, pinchState.centerY);
+  };
+
+  const handleCanvasPointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.pointerType !== "touch") return;
+    pointersRef.current.delete(event.pointerId);
+    if (pointersRef.current.size < 2) {
+      pinchRef.current = null;
+    }
+  };
+
+  const handleWheel = (event: React.WheelEvent<HTMLDivElement>) => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    if (WHEEL_SCROLL_ENABLED) return;
+    event.preventDefault();
+    const rect = viewport.getBoundingClientRect();
+    const focusX = event.clientX - rect.left;
+    const focusY = event.clientY - rect.top;
+    const nextZoom = zoom - event.deltaY * 0.0015;
+    updateZoom(nextZoom, focusX, focusY);
+  };
+
   if (!isBoardValid) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white px-6 text-center text-zinc-800 dark:bg-zinc-900 dark:text-zinc-50">
@@ -398,9 +601,13 @@ export default function BoardPage() {
       </nav>
 
       <div className="absolute inset-0 pt-[73px]">
-        <div ref={viewportRef} className="relative h-full w-full overflow-auto">
+        <div
+          ref={viewportRef}
+          className="relative h-full w-full overflow-auto"
+          onWheel={handleWheel}
+        >
           <div
-            className="relative bg-white dark:bg-zinc-950"
+            className="relative cursor-grab bg-white active:cursor-grabbing dark:bg-zinc-950"
             style={{
               width: `${CANVAS_WIDTH}px`,
               height: `${CANVAS_HEIGHT}px`,
@@ -408,9 +615,13 @@ export default function BoardPage() {
               minHeight: `${CANVAS_HEIGHT}px`,
               transform: `scale(${canvasScale})`,
               transformOrigin: "top left",
+              touchAction: "none",
             }}
             onDoubleClick={handleCanvasDoubleClick}
             onPointerDown={handleCanvasPointerDown}
+            onPointerMove={handleCanvasPointerMove}
+            onPointerUp={handleCanvasPointerEnd}
+            onPointerCancel={handleCanvasPointerEnd}
             onClick={(event) => {
               if (event.target !== event.currentTarget) return;
               setSelectedId(null);
@@ -436,13 +647,15 @@ export default function BoardPage() {
 
             {objects.map((obj) => {
               const isSelected = obj.id === selectedId;
+              const isHovered = obj.id === hoveredId;
+              const isDragging = dragState?.id === obj.id;
               return (
                 <div
                   key={obj.id}
-                  className={`absolute rounded-lg border-2 bg-white p-4 shadow-sm transition-shadow hover:shadow-lg dark:bg-zinc-900 ${
-                    isSelected
-                      ? "border-zinc-800 dark:border-zinc-100"
-                      : "border-zinc-200 dark:border-zinc-700"
+                  className={`absolute rounded-lg border-2 bg-white p-4 shadow-sm transition-shadow dark:bg-zinc-900 ${
+                    isSelected || isHovered || isDragging
+                      ? "border-zinc-800 shadow-lg dark:border-zinc-100"
+                      : "border-zinc-200 hover:shadow-lg dark:border-zinc-700"
                   }`}
                   style={{
                     left: `${obj.x}px`,
@@ -450,6 +663,8 @@ export default function BoardPage() {
                     width: `${obj.width}px`,
                     height: `${obj.height}px`,
                   }}
+                  onPointerEnter={() => setHoveredId(obj.id)}
+                  onPointerLeave={() => setHoveredId((prev) => (prev === obj.id ? null : prev))}
                   onPointerDown={(event) => handlePointerDownOnObject(event, obj)}
                   onClick={() => {
                     setSelectedId(obj.id);
@@ -457,7 +672,7 @@ export default function BoardPage() {
                   }}
                 >
                   <div className="mb-2 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-                    <span>{isSelected ? "Selected" : ""}</span>
+                    <span>{isDragging ? "Moving" : isHovered ? "Drag edge to move" : isSelected ? "Selected" : ""}</span>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
