@@ -1,5 +1,7 @@
 # Public Clipboard - Design Document
 
+tasks: seoandcompliancepages,app,landingpages,server
+
 ## Project Overview
 
 **Public Clipboard** is a web application that enables users to share text across devices without installing an app. Users access specific numbered boards (canvases) where they can create, position, and manage text objects in a spatial layout. The primary use case is quickly copying text from one device (e.g., desktop) to another (e.g., smartphone).
@@ -11,7 +13,7 @@ Enable quick, temporary text sharing across devices through a simple, browser-ba
 ## Key Features
 
 ### 1. Spatial Canvas Interface
-- Fixed-size canvas (1920x1080) per board
+- Fixed-size canvas (3840x2160) per board
 - Users can create text objects and position them anywhere on the canvas
 - Visual organization similar to sticky notes on a whiteboard
 - Mobile: Canvas scales proportionally to fit viewport with pinch-to-zoom and pan capabilities

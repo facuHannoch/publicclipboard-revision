@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/traefik.yml:ro
+      - ./traefik/acme.json:/acme.json
+      - ./traefik/config:/config:ro
+    networks:
+      - web
+
+  app:
+    build: .
+    container_name: publicclipboard-app
+    restart: unless-stopped
+    environment:
+      - REDIS_HOST=redis
+      - NODE_ENV=production
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`api.publicclipboard.com`)"
+      - "traefik.http.routers.app.entrypoints=websecure"
+      - "traefik.http.routers.app.tls.certresolver=letsencrypt"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
+    depends_on:
+      - redis
+    networks:
+      - web
+
+  redis:
+    image: redis:7-alpine
+    container_name: publicclipboard-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - web
+
+volumes:
+  redis-data:
+    driver: local
+
+networks:
+  web:
+    external: true

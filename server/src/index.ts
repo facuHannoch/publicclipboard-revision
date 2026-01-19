@@ -275,10 +275,10 @@ const handleClientMessage = async (socket: ClientSocket, message: ClientMessage)
     return
   }
 
-  if (!validateActionRate(socket.meta.ip)) {
-    sendMessage(socket, { type: 'error', payload: { message: 'Rate limit exceeded' } })
-    return
-  }
+  // if (!validateActionRate(socket.meta.ip)) {
+  //   sendMessage(socket, { type: 'error', payload: { message: 'Rate limit exceeded' } })
+  //   return
+  // }
 
   switch (message.type) {
     case 'create_object':
@@ -363,10 +363,10 @@ app.post('/api/boards/:id/actions', async (req, res) => {
     const payload = (req.body?.payload ?? {}) as Record<string, unknown>
     const mockSocket = { meta: { boardId, userId: 'rest', userLabel: 'Anonymous', ip } } as ClientSocket
 
-    if (!validateActionRate(ip)) {
-      res.status(429).json({ error: 'Rate limit exceeded' })
-      return
-    }
+    // if (!validateActionRate(ip)) {
+    //   res.status(429).json({ error: 'Rate limit exceeded' })
+    //   return
+    // }
 
     switch (type) {
       case 'create_object':

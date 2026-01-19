@@ -1,8 +1,8 @@
 import crypto from 'node:crypto'
 import type { Size, Coordinates, TextObject } from './types.js'
 
-const CANVAS_WIDTH = 1920
-const CANVAS_HEIGHT = 1080
+const CANVAS_WIDTH = 3840
+const CANVAS_HEIGHT = 2160
 
 export const config = {
   canvasWidth: CANVAS_WIDTH,
