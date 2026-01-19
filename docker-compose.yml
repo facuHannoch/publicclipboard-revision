@@ -17,12 +17,15 @@ services:
       - web
 
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: publicclipboard-app
     restart: unless-stopped
     environment:
-      - REDIS_HOST=redis
+      - REDIS_URL=redis://redis:6379
       - NODE_ENV=production
+      - PORT=8080
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.app.rule=Host(`api.publicclipboard.com`)"
