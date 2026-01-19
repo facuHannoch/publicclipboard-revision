@@ -7,3 +7,5 @@
 
 ## LOG
 - Created initial server build plan based on DESIGN.md requirements.
+- Implemented server skeleton (Express + WS), Redis persistence, moderation/ban logic, rate limiting, history/events, and REST fallback endpoints.
+- Added server README with WS/REST usage and environment configuration.
