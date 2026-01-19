@@ -1,18 +1,22 @@
-version: '3.8'
-
 services:
   traefik:
-    image: traefik:v3.2
+    image: traefik:v3.6
     container_name: traefik
     restart: unless-stopped
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
     ports:
       - "80:80"
       - "443:443"
+      - "8080:8080"  # Traefik dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/traefik.yml:ro
-      - ./traefik/acme.json:/acme.json
-      - ./traefik/config:/config:ro
+      # - ./traefik/traefik.yml:/traefik.yml:ro
+      # - ./traefik/acme.json:/acme.json
+      # - ./traefik/config:/config:ro
     networks:
       - web
 
@@ -31,7 +35,7 @@ services:
       - "traefik.http.routers.app.rule=Host(`api.publicclipboard.com`)"
       - "traefik.http.routers.app.entrypoints=websecure"
       - "traefik.http.routers.app.tls.certresolver=letsencrypt"
-      - "traefik.http.services.app.loadbalancer.server.port=3000"
+      - "traefik.http.services.app.loadbalancer.server.port=8080"
     depends_on:
       - redis
     networks:
